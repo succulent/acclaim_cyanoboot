@@ -47,16 +47,19 @@ int do_menu() {
 	lcd_bl_set_brightness(255);
 	lcd_console_init();
 
-#define NUM_OPTS		8  //number of boot options
+#define NUM_OPTS		11  //number of boot options
 
-char *opt_list[NUM_OPTS] = 	{" Internal eMMC Normal     ",
-				 " Internal eMMC Recovery   ",
-				 " Internal eMMC Alternate  ",
-				 " SD Card Normal           ",
-				 " SD Card Recovery         ",
-				 " SD Card Alternate        ",
-				 " Start fastboot           ",
-				 " default boot from:  ",
+char *opt_list[NUM_OPTS] = 	{" 1) EMMC Normal             ",
+				 " 2) EMMC Recovery           ",
+				 " 3) EMMC Alternate          ",
+				 " 4) SDC Recovery            ",
+				 " 5) SDC CM7                 ",
+				 " 6) SDC CM9                 ",
+				 " 7) SDC AltBoot 1           ",
+				 " 8) SDC AltBoot 2           ",
+				 " 9) SDC AltBoot 3           ",
+				 " 0) Start fastboot          ",
+				 " Default Boot From: ",
 				};
 
 		int x;
@@ -87,11 +90,11 @@ char *opt_list[NUM_OPTS] = 	{" Internal eMMC Normal     ",
 			if (read_u_boot_device() == '1') {
 				lcd_puts("EMMC ");
 				} else {
-				lcd_puts("SD   "); }
+				lcd_puts("SDC  "); }
 		}
-		lcd_console_setpos(MENUTOP+10, INDENT);
+		lcd_console_setpos(MENUTOP+12, INDENT);
 			lcd_puts(" \"n\" moves to next item");
-		lcd_console_setpos(MENUTOP+11, INDENT);
+		lcd_console_setpos(MENUTOP+13, INDENT);
 			lcd_puts(" POWER button selects");
 		lcd_console_setpos(60, 0);
 			lcd_puts(" ------\n Menu by j4mm3r.\n Redone by fattire - ALPHA (" __TIMESTAMP__  ") - ** EXPERIMENTAL **");
@@ -116,7 +119,7 @@ char *opt_list[NUM_OPTS] = 	{" Internal eMMC Normal     ",
 				if (read_u_boot_device() == '1') {
 					lcd_puts("EMMC ");
 					} else {
-					lcd_puts("SD   "); }
+					lcd_puts("SDC  "); }
 				}
 			cursor++;
 			if (cursor == NUM_OPTS - ignore_last_option) cursor = 0;
@@ -128,7 +131,7 @@ char *opt_list[NUM_OPTS] = 	{" Internal eMMC Normal     ",
 					if (read_u_boot_device() == '1') {
 					lcd_puts("EMMC ");
 					} else {
-					lcd_puts("SD   "); }
+					lcd_puts("SDC  "); }
 				}
 			do {udelay(100);} while (gpio_read(HOME_BUTTON) == 0);  //wait for release
 
@@ -144,7 +147,7 @@ char *opt_list[NUM_OPTS] = 	{" Internal eMMC Normal     ",
 			if (read_u_boot_device() == '1') {
 					lcd_puts("EMMC ");
 					} else {
-					lcd_puts("SD   "); }
+					lcd_puts("SDC  "); }
 			do {udelay(100);} while (gpio_read(POWER_BUTTON) == 1);  //wait for release
 		}
 			udelay(100);
