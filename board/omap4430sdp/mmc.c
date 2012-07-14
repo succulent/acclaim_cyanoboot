@@ -543,53 +543,53 @@ static void display_feedback(enum boot_action image)
 //	uint16_t *image_start;
 //	uint16_t *image_end;
 
-	lcd_bl_set_brightness(255);
- 	lcd_console_setpos(52, 25);
+	lcd_bl_set_brightness(150);
+ 	lcd_console_setpos(53, 25);
 	lcd_console_setcolor(CONSOLE_COLOR_CYAN, CONSOLE_COLOR_BLACK);
 
 	switch(image) {
 
 	case BOOT_EMMC_NORMAL:
-		lcd_puts(" Loading Normal (EMMC)...");
+		lcd_puts(" (INT) LOADING BOOT ...     ");
 		break;
 
 	case BOOT_EMMC_RECOVERY:
-		lcd_puts(" Loading Recovery (EMMC)...");
+		lcd_puts(" (INT) LOADING RECOVERY ... ");
 		break;
 
 	case BOOT_EMMC_ALTBOOT:
-		lcd_puts(" Loading AltBoot (EMMC)...");
+		lcd_puts(" (INT) LOADING ALTBOOT ...  ");
 		break;
 
 	case BOOT_SD_RECOVERY:
-		lcd_puts(" Loading Recovery (SDC)...");
+		lcd_puts(" (SDC) LOADING RECOVERY ...  ");
 		break;
 
-	case BOOT_SD_NORMAL:
-		lcd_puts(" Loading CM7 (SDC)...");
+	case BOOT_SD_CM7:
+		lcd_puts(" (SDC) LOADING CM7 ...       ");
 		break;
 
-	case BOOT_SD_ALTBOOT:
-		lcd_puts(" Loading CM9 (SDC)....");
+	case BOOT_SD_CM9:
+		lcd_puts(" (SDC) LOADING CM9 ...       ");
 		break;
 
 	case BOOT_SD_ALTBOOT1:
-		lcd_puts(" Loading AltBoot 1 from SD...");
+		lcd_puts(" (SDC) LOADING ALTBOOT1 ...  ");
 		break;
 
 	case BOOT_SD_ALTBOOT2:
-		lcd_puts(" Loading AltBoot 2 from SD...");
+		lcd_puts(" (SDC) LOADING ALTBOOT2 ...  ");
 		break;
 
 	case BOOT_SD_ALTBOOT3:
-		lcd_puts(" Loading AltBoot 3 from SD...");
+		lcd_puts(" (SDC) LOADING ALTBOOT3 ...  ");
 		break;
 
 	case BOOT_FASTBOOT:
-		lcd_puts(" - Fastboot Has Started -");
+		lcd_puts(" FASTBOOT HAS STARTED, PRESS POWER TO CANCEL ");
 		break;
 	default:
-		lcd_puts(" Loading...");
+		lcd_puts(" LOADING ... ");
 		break;
 	}
 
@@ -656,54 +656,67 @@ static inline enum boot_action get_boot_action(void)
 		char device_flag, altboot_flag;
 		if ((running_from_sd()) && (!((device_flag = read_u_boot_device()) == '1'))) {
 			if (altboot_flag = read_u_boot_altboot() == '1') {
-				lcd_console_setpos(53, 15);
+				lcd_console_setpos(54, 25);
 				lcd_console_setcolor(CONSOLE_COLOR_ORANGE, CONSOLE_COLOR_BLACK);
-				lcd_puts("Normal SD boot overridden.  Alt boot from SD...");
-				return BOOT_SD_ALTBOOT;
+				lcd_puts("SD CM9 BOOT OVERRIDDEN. BOOTING TO SD CM7...");
+				return BOOT_SD_CM7;
 			} else {
-				return BOOT_SD_NORMAL;
+				return BOOT_SD_CM9;
 			}
 		} else { 	// running from emmc or overridden
-				if (altboot_flag = read_u_boot_altboot() == '1') {
-					lcd_console_setpos(53, 11);
-					lcd_console_setcolor(CONSOLE_COLOR_ORANGE, CONSOLE_COLOR_BLACK);
-					lcd_puts("Normal SD boot overridden.  Alt boot from EMMC...");
-					return BOOT_EMMC_ALTBOOT; }
-				else {
-					if ((device_flag == '1') && (running_from_sd())) {
-					lcd_console_setpos(53, 15);
-					lcd_console_setcolor(CONSOLE_COLOR_ORANGE, CONSOLE_COLOR_BLACK);
-					lcd_puts("SD boot overridden.  Normal boot from EMMC..."); }
-					return BOOT_EMMC_NORMAL;
-				}
+			if (altboot_flag = read_u_boot_altboot() == '1') {
+				lcd_console_setpos(54, 25);
+				lcd_console_setcolor(CONSOLE_COLOR_ORANGE, CONSOLE_COLOR_BLACK);
+				lcd_puts("SD CM9 BOOT OVERRIDDEN. BOOTING TO INT ALTBOOT...");
+				return BOOT_EMMC_ALTBOOT; }
+			else {
+				if ((device_flag == '1') && (running_from_sd())) {
+				lcd_console_setpos(54, 25);
+				lcd_console_setcolor(CONSOLE_COLOR_ORANGE, CONSOLE_COLOR_BLACK);
+				lcd_puts("SD BOOT OVERRIDDEN. BOOTING TO INT BOOT..."); }
+				return BOOT_EMMC_NORMAL;
+			}
 		}
 	}
 }
 
 int determine_boot_type(void)
 {
-
+	DECLARE_GLOBAL_DATA_PTR;
+	uint8_t charging;
+	uint16_t batt_lvl;
+	extern uint16_t check_charging(uint8_t* enabling);
 	unsigned long bootcount = bootcount_load();
 	char s [5];
+
 	setenv("bootlimit", stringify(ACCLAIM_BOOTLIMIT));
 	setenv("altbootcmd", "mmcinit 1; booti mmc1 recovery");
-
+	batt_lvl = check_charging(&charging);
 	lcd_console_init();
 	// give subtle indicator if uboot is booting from emmc or sd
+
 
 	lcd_console_setpos(0, 1); //indent slightly
 	lcd_console_setcolor(CONSOLE_COLOR_GRAY, CONSOLE_COLOR_BLACK);
 	if (running_from_sd()) {
 		lcd_putc('S');
 		} else {
-		lcd_putc('E'); }
+		lcd_putc('I'); }
 	sprintf(s, " %u", bootcount);
 	lcd_puts(s);
+	extern const char* board_rev_string(unsigned long btype);
+	lcd_console_setpos(1, 1);
+	lcd_printf("board rev: %s | %s", board_rev_string(gd->bd->bi_board_revision), (get_sdram_size() == SZ_512M?"512MB/8GB":"1GB/16GB"));
+	lcd_console_setpos(2, 1);
+	lcd_console_setcolor((batt_lvl < 30?(batt_lvl <= 10?CONSOLE_COLOR_RED:CONSOLE_COLOR_ORANGE):CONSOLE_COLOR_GREEN), CONSOLE_COLOR_BLACK);
+	lcd_printf("batt level: %d\n charging %s", batt_lvl, (charging?"ENABLED":"DISABLED"));
+
 
 	int action = get_boot_action();
 
 	while(1){
 		switch(action) {
+
 	        //actually, boot from boot+512K -- thanks bauwks!
 		case BOOT_EMMC_NORMAL:
 			setenv("bootcmd", "mmcinit 1; booti mmc1 boot 0x80000");
@@ -716,28 +729,29 @@ int determine_boot_type(void)
 			display_feedback(BOOT_EMMC_RECOVERY);
 			return 0;
 
-		case BOOT_EMMC_ALTBOOT:  // no 512K offset, this is just a file.
+		// no 512K offset, this is just a file.
+		case BOOT_EMMC_ALTBOOT:  
 			setenv ("bootcmd", "setenv setbootargs setenv bootargs ${emmcbootargs}; run setbootargs; mmcinit 1; fatload mmc 1:5 0x81000000 altboot.img; booti 0x81000000");
 			setenv ("altbootcmd", "run bootcmd"); // for emmc altboot altbootcmd is the same as bootcmd
 			display_feedback(BOOT_EMMC_ALTBOOT);
 			return 0;
 
-                case BOOT_SD_RECOVERY:
-                        setenv ("bootcmd", "setenv setbootargs setenv bootargs ${sdbootargs}; run setbootargs; mmcinit 0; fatload mmc 0:1 0x81000000 recovery.img; booti 0x81000000");
-                        setenv ("altbootcmd", "run bootcmd"); // for sd boot altbootcmd is the same as bootcmd
-			display_feedback(BOOT_SD_RECOVERY);
-                        return 0;
-
-		case BOOT_SD_NORMAL:
-			setenv ("bootcmd", "setenv setbootargs setenv bootargs ${sdbootargs}; run setbootargs; mmcinit 0; fatload mmc 0:1 0x81000000 boot.img; booti 0x81000000");
+		case BOOT_SD_RECOVERY:
+			setenv ("bootcmd", "setenv setbootargs setenv bootargs ${sdbootargs}; run setbootargs; mmcinit 0; fatload mmc 0:1 0x81000000 recovery.img; booti 0x81000000");
 			setenv ("altbootcmd", "run bootcmd"); // for sd boot altbootcmd is the same as bootcmd
-			display_feedback(BOOT_SD_NORMAL);
+			display_feedback(BOOT_SD_RECOVERY);
 			return 0;
 
-		case BOOT_SD_ALTBOOT:
-			setenv ("bootcmd", "setenv setbootargs setenv bootargs ${sdbootargs}; run setbootargs; mmcinit 0; fatload mmc 0:1 0x81000000 altboot.img; booti 0x81000000");
+		case BOOT_SD_CM7:
+			setenv ("bootcmd", "setenv setbootargs setenv bootargs ${sdbootargs}; run setbootargs; mmcinit 0; fatload mmc 0:1 0x81000000 cm7.img; booti 0x81000000");
 			setenv ("altbootcmd", "run bootcmd"); // for sd boot altbootcmd is the same as bootcmd
-			display_feedback(BOOT_SD_ALTBOOT);
+			display_feedback(BOOT_SD_CM7);
+			return 0;
+
+		case BOOT_SD_CM9:
+			setenv ("bootcmd", "setenv setbootargs setenv bootargs ${sdbootargs}; run setbootargs; mmcinit 0; fatload mmc 0:1 0x81000000 cm9.img; booti 0x81000000");
+			setenv ("altbootcmd", "run bootcmd"); // for sd boot altbootcmd is the same as bootcmd
+			display_feedback(BOOT_SD_CM9);
 			return 0;
 
 		case BOOT_SD_ALTBOOT1:
@@ -760,7 +774,7 @@ int determine_boot_type(void)
 
 		case BOOT_FASTBOOT:
 			display_feedback(BOOT_FASTBOOT);
-                        run_command("fastboot", 0);
+			run_command("fastboot", 0);
 			break;
 
 		case INVALID:
