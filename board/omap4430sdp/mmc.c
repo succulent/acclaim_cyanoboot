@@ -46,6 +46,9 @@
 #define HOME_BUTTON	32
 #define POWER_BUTTON	29
 
+#define INDENT		17
+#define MENUTOP		55
+
 /* Windows Basic data partition GUID */
 /* EBD0A0A2-B9E5-4433-87C0-68B6B72699C7 */
 static const u8 windows_partition_type[16] = {
@@ -529,8 +532,7 @@ static int check_update_zip(void)
 	for (i = 0; i < ARRAY_SIZE(update_zip_names); ++i) {
 		sprintf(buffer, "mmcinit 0; fatload mmc 0 0x80000000 %s 4", update_zip_names[i]);
 	
-		if (!run_command (buffer, 0) &&
-			*update_image_location != 0xDEADBEEF) {
+		if (!run_command (buffer, 0) && *update_image_location != 0xDEADBEEF) {
 			return i;
 		}
 	}
@@ -543,53 +545,53 @@ static void display_feedback(enum boot_action image)
 //	uint16_t *image_start;
 //	uint16_t *image_end;
 
-	lcd_bl_set_brightness(150);
- 	lcd_console_setpos(53, 25);
+	lcd_bl_set_brightness(100);
+	lcd_console_setpos(MENUTOP, INDENT);
 	lcd_console_setcolor(CONSOLE_COLOR_CYAN, CONSOLE_COLOR_BLACK);
 
 	switch(image) {
 
 	case BOOT_EMMC_NORMAL:
-		lcd_puts(" (INT) LOADING BOOT ...     ");
+		lcd_puts("         (INT) LOADING BOOT ...              ");
 		break;
 
 	case BOOT_EMMC_RECOVERY:
-		lcd_puts(" (INT) LOADING RECOVERY ... ");
+		lcd_puts("         (INT) LOADING RECOVERY ...          ");
 		break;
 
 	case BOOT_EMMC_ALTBOOT:
-		lcd_puts(" (INT) LOADING ALTBOOT ...  ");
+		lcd_puts("         (INT) LOADING ALTBOOT ...           ");
 		break;
 
 	case BOOT_SD_RECOVERY:
-		lcd_puts(" (SDC) LOADING RECOVERY ...  ");
+		lcd_puts(" 	   (SDC) LOADING RECOVERY ...          ");
 		break;
 
 	case BOOT_SD_CM7:
-		lcd_puts(" (SDC) LOADING CM7 ...       ");
+		lcd_puts(" 	   (SDC) LOADING CM7 ...               ");
 		break;
 
 	case BOOT_SD_CM9:
-		lcd_puts(" (SDC) LOADING CM9 ...       ");
+		lcd_puts(" 	   (SDC) LOADING CM9 ...               ");
 		break;
 
 	case BOOT_SD_ALTBOOT1:
-		lcd_puts(" (SDC) LOADING ALTBOOT1 ...  ");
+		lcd_puts(" 	   (SDC) LOADING ALTBOOT1 ...          ");
 		break;
 
 	case BOOT_SD_ALTBOOT2:
-		lcd_puts(" (SDC) LOADING ALTBOOT2 ...  ");
+		lcd_puts(" 	   (SDC) LOADING ALTBOOT2 ...          ");
 		break;
 
 	case BOOT_SD_ALTBOOT3:
-		lcd_puts(" (SDC) LOADING ALTBOOT3 ...  ");
+		lcd_puts(" 	   (SDC) LOADING ALTBOOT3 ...          ");
 		break;
 
 	case BOOT_FASTBOOT:
 		lcd_puts(" FASTBOOT HAS STARTED, PRESS POWER TO CANCEL ");
 		break;
 	default:
-		lcd_puts(" LOADING ... ");
+		lcd_puts(" 		 LOADING ...                   ");
 		break;
 	}
 
@@ -638,42 +640,41 @@ static inline enum boot_action get_boot_action(void)
 	// give them time to press the button(s)
 	udelay(2000*1000);
 
-	if ((gpio_read(HOME_BUTTON) == 0) &&
-		(gpio_read(POWER_BUTTON) == 1)) {  // BOTH KEYS STILL HELD FROM UB1
+	if ((gpio_read(HOME_BUTTON) == 0) && (gpio_read(POWER_BUTTON) == 1)) {  // BOTH KEYS STILL HELD FROM UB1
 		if (running_from_sd()) {
 			return BOOT_SD_RECOVERY;
-			}
-			return BOOT_EMMC_RECOVERY;
 		}
+		return BOOT_EMMC_RECOVERY;
+	}
 
-		if ((gpio_read(HOME_BUTTON) == 0) &&
-               		 (gpio_read(POWER_BUTTON) == 0))    // just HOME button is pressed
-		{ return do_menu();
-		}
-	else	// default boot
-		{
-
+	if ((gpio_read(HOME_BUTTON) == 0) && (gpio_read(POWER_BUTTON) == 0)) {   // just HOME button is pressed
+		return do_menu();
+	} else	{ // default boot
 		char device_flag, altboot_flag;
 		if ((running_from_sd()) && (!((device_flag = read_u_boot_device()) == '1'))) {
 			if (altboot_flag = read_u_boot_altboot() == '1') {
-				lcd_console_setpos(54, 25);
+				lcd_console_setpos(MENUTOP, INDENT);
 				lcd_console_setcolor(CONSOLE_COLOR_ORANGE, CONSOLE_COLOR_BLACK);
-				lcd_puts("SD CM9 BOOT OVERRIDDEN. BOOTING TO SD CM7...");
+				lcd_puts("SD CM9 BOOT OVERRIDDEN. BOOTING TO SD CM7    ");
+
 				return BOOT_SD_CM7;
 			} else {
 				return BOOT_SD_CM9;
 			}
 		} else { 	// running from emmc or overridden
 			if (altboot_flag = read_u_boot_altboot() == '1') {
-				lcd_console_setpos(54, 25);
+				lcd_console_setpos(MENUTOP, INDENT);
 				lcd_console_setcolor(CONSOLE_COLOR_ORANGE, CONSOLE_COLOR_BLACK);
-				lcd_puts("SD CM9 BOOT OVERRIDDEN. BOOTING TO INT ALTBOOT...");
-				return BOOT_EMMC_ALTBOOT; }
-			else {
+				lcd_puts("SD BOOT OVERRIDDEN. BOOTING TO INT ALTBOOT   ");
+
+				return BOOT_EMMC_ALTBOOT; 
+			} else {
 				if ((device_flag == '1') && (running_from_sd())) {
-				lcd_console_setpos(54, 25);
-				lcd_console_setcolor(CONSOLE_COLOR_ORANGE, CONSOLE_COLOR_BLACK);
-				lcd_puts("SD BOOT OVERRIDDEN. BOOTING TO INT BOOT..."); }
+					lcd_console_setpos(MENUTOP, INDENT);
+					lcd_console_setcolor(CONSOLE_COLOR_ORANGE, CONSOLE_COLOR_BLACK);
+					lcd_puts("SD BOOT OVERRIDDEN. BOOTING TO INT BOOT      ");
+				}
+
 				return BOOT_EMMC_NORMAL;
 			}
 		}
@@ -700,8 +701,9 @@ int determine_boot_type(void)
 	lcd_console_setcolor(CONSOLE_COLOR_GRAY, CONSOLE_COLOR_BLACK);
 	if (running_from_sd()) {
 		lcd_putc('S');
-		} else {
-		lcd_putc('I'); }
+	} else {
+		lcd_putc('I'); 
+	}
 	sprintf(s, " %u", bootcount);
 	lcd_puts(s);
 	extern const char* board_rev_string(unsigned long btype);
