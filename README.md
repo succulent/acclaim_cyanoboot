@@ -17,7 +17,7 @@
 - $ make mrproper
 - //clean up
 
-- Files for emmc bootbata partition
+Files for emmc bootbata partition
 - altboot.img   -> altboot emmc bootdata
 
 - Files for sdcard
@@ -36,3 +36,6 @@
 - Ogilvy
 - Rebellos
 - HD
+
+dd if=/dev/zero of=flashing_boot_emmc.img bs=1 seek=262143 count=1
+ # pads to 256K size

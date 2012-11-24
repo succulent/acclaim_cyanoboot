@@ -1,7 +1,7 @@
 /*
  * Original Boot Menu code by j3mm3r
  * (C) Copyright 2011 j3mm3r
- * 1.2 Enhancements/NT port by fattire, Dominik Marszk (Rebellos)
+ * 1.2 Enhancements/NT port by fattire & Rebellos
  * (C) Copyright 2011-2012 The CyanogenMod Project
  *
  *
@@ -59,8 +59,8 @@ char *opt_list[NUM_OPTS] =   {	" 1) INT BOOT                 ",
 				" 2) INT RECOVERY             ",
 				" 3) INT ALTBOOT              ",
 				" 4) SDC RECOVERY             ",
-				" 5) SDC CM7                  ",
-				" 6) SDC CM9                  ",
+				" 5) SDC BOOT                 ",
+				" 6) SDC ALTBOOT              ",
 				" 7) SDC ALTBOOT1             ",
 				" 8) SDC ALTBOOT2             ",
 				" 9) SDC ALTBOOT3             ",
@@ -90,8 +90,8 @@ unsigned char get_keys_pressed(unsigned char* key) {
 }
 
 int check_device_image(enum image_dev device, const char* file) {
-	char res = ((device == DEV_SD) ? 0 : 1);
-	char vax = ((device == DEV_SD) ? 1 : 5);
+	char res = ((device == DEV_SD) ? 0 : 1); //0=sdcard, 1=emmc
+	char vax = ((device == DEV_SD) ? 1 : 5); //1=p1, 5=p5 (bootdata partition)
 	lcd_is_enabled = 0;
 	sprintf(buf, "mmcinit %d; fatload mmc %d:%d 0x%08x %s 1", res, res, vax, &res, file);
 	if (run_command(buf, 0)) { //no such file
@@ -185,7 +185,7 @@ int do_menu() {
 	lcd_puts("          BOOT MENU          ");
 	lcd_console_setpos(MENUTOP-2, INDENT);
 	lcd_puts("_____________________________");
-	lcd_console_setpos(MENUTOP + NUM_OPTS + 4, INDENT - 6);
+	lcd_console_setpos(55, 17);
 	lcd_puts("                                             ");
 
 	gpio_write(COL0, 0);//drive COL0 LOW
@@ -204,10 +204,10 @@ int do_menu() {
 
 	if (check_device_image(DEV_SD, "recovery.img"))
 		valid_opt[BOOT_SD_RECOVERY] = 1;
-	if (check_device_image(DEV_SD, "cm7.img"))
-		valid_opt[BOOT_SD_CM7] = 1;
-	if (check_device_image(DEV_SD, "cm9.img"))
-		valid_opt[BOOT_SD_CM9] = 1;
+	if (check_device_image(DEV_SD, "boot.img"))
+		valid_opt[BOOT_SD_BOOT] = 1;
+	if (check_device_image(DEV_SD, "altboot.img"))
+		valid_opt[BOOT_SD_ALTBOOT] = 1;
 	if (check_device_image(DEV_SD, "altboot1.img"))
 		valid_opt[BOOT_SD_ALTBOOT1] = 1;
 	if (check_device_image(DEV_SD, "altboot2.img"))
@@ -231,10 +231,10 @@ int do_menu() {
 			highlight_boot_line(x, HIGHLIGHT_GRAY);
 	}
 
-	lcd_console_setpos(MENUTOP + NUM_OPTS + 4, INDENT - 6);
-	lcd_puts(" PRESS VOL-UP/DN TO MOVE AND \"n\" TO SELECT ");
+	lcd_console_setpos(55, 17);
+	lcd_puts(" PRESS VOL-UP/DN TO MOVE UP/DN & ^ TO SELECT ");
 	lcd_console_setpos(59, 0);
-	lcd_puts(" \n \n Menu by j4mm3r, HD.\n Credits: bauwks, fattire, mik_os, Rebellos, Denx, Ogilvy \n Cyanoboot for Nook Tablet (" __TIMESTAMP__ ") - ** NOT FOR SALE **");
+	lcd_puts(" \n \n Credits: bauwks, chrmhoffmann, fattire,  Kuzma30, mik_os, Rebellos\n Credits: Denx, j4mm3r, Ogilvy, succulent, tonsofquestions\n Cyanoboot for Nook Tablet (" __TIMESTAMP__ ") - ** NOT FOR SALE **");
 
 	cursor = 0;
 

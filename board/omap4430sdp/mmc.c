@@ -118,8 +118,7 @@ struct ptable {
 	struct efi_entry entry[EFI_ENTRIES];	
 };
 
-static void init_mbr(u8 *mbr, u32 blocks)
-{
+static void init_mbr(u8 *mbr, u32 blocks) {
 	mbr[0x1be] = 0x00; // nonbootable
 	mbr[0x1bf] = 0xFF; // bogus CHS
 	mbr[0x1c0] = 0xFF;
@@ -141,14 +140,10 @@ static void init_mbr(u8 *mbr, u32 blocks)
 	mbr[0x1ff] = 0xaa;
 }
 
-static void start_ptbl(struct ptable *ptbl, unsigned blocks)
-{
+static void start_ptbl(struct ptable *ptbl, unsigned blocks) {
 	struct efi_header *hdr = &ptbl->header;
-
 	memset(ptbl, 0, sizeof(*ptbl));
-
 	init_mbr(ptbl->mbr, blocks - 1);
-
 	memcpy(hdr->magic, "EFI PART", 8);
 	hdr->version = EFI_VERSION;
 	hdr->header_sz = sizeof(struct efi_header);
@@ -162,22 +157,18 @@ static void start_ptbl(struct ptable *ptbl, unsigned blocks)
 	hdr->entries_size = sizeof(struct efi_entry);
 }
 
-static void end_ptbl(struct ptable *ptbl)
-{
+static void end_ptbl(struct ptable *ptbl) {
 	struct efi_header *hdr = &ptbl->header;
 	u32 n;
-
 	n = crc32(0, 0, 0);
 	n = crc32(n, (void*) ptbl->entry, sizeof(ptbl->entry));
 	hdr->entries_crc32 = n;
-
 	n = crc32(0, 0, 0);
 	n = crc32(0, (void*) &ptbl->header, sizeof(ptbl->header));
 	hdr->crc32 = n;
 }
 
-int add_ptn(struct ptable *ptbl, u64 first, u64 last, const char *name)
-{
+int add_ptn(struct ptable *ptbl, u64 first, u64 last, const char *name) {
 	struct efi_header *hdr = &ptbl->header;
 	struct efi_entry *entry = ptbl->entry;
 	unsigned n;
@@ -191,6 +182,7 @@ int add_ptn(struct ptable *ptbl, u64 first, u64 last, const char *name)
 		printf("partition '%s' does not fit\n", name);
 		return -1;
 	}
+	
 	for (n = 0; n < EFI_ENTRIES; n++, entry++) {
 		if (entry->last_lba)
 			continue;
@@ -207,8 +199,7 @@ int add_ptn(struct ptable *ptbl, u64 first, u64 last, const char *name)
 	return -1;
 }
 
-void import_efi_partition(struct efi_entry *entry)
-{
+void import_efi_partition(struct efi_entry *entry) {
 	struct fastboot_ptentry e;
 	int n;
 #ifdef USE_ONLY_GPT_DATA_PARTITIONS
@@ -231,18 +222,18 @@ void import_efi_partition(struct efi_entry *entry)
 	fastboot_flash_add_ptn(&e);
 }
 
-int load_ptbl(int mmc_cont)
-{
+int load_ptbl(int mmc_cont) {
 	static unsigned char data[512];
 	static struct efi_entry entry[4];
 	int n,m,r;
-
 	fastboot_flash_reset_ptn();
 	r = mmc_read(mmc_cont, 1, data, 512);
+	
 	if (r != 1) {
 		printf("error reading partition table\n");
 		return -1;
 	}
+	
 	if (memcmp(data, "EFI PART", 8)) {
 		//printf("efi partition table not found\n");
 		return -1;
@@ -250,10 +241,12 @@ int load_ptbl(int mmc_cont)
 
 	for (n = 0; n < (128/4); n++) {
 		r = mmc_read(mmc_cont, 2 + n, (void*) entry, 512);
+		
 		if (r != 1) {
 			printf("partition read failed\n");
 			return 1;
 		}
+		
 		for (m = 0; m < 4; m ++)
 			import_efi_partition(entry + m);
 	}
@@ -317,8 +310,7 @@ Alternate way of saying the above...
 
 static struct ptable the_ptable;
 
-static int do_format(void)
-{
+static int do_format(void) {
 	struct ptable *ptbl = &the_ptable;
 	unsigned sector_sz, blocks;
 	unsigned next;
@@ -328,21 +320,23 @@ static int do_format(void)
 		printf("mmc init failed?\n");
 		return -1;
 	}
-
 	mmc_info(1, &sector_sz, &blocks);
 	printf("blocks %d\n", blocks);
-
 	start_ptbl(ptbl, blocks);
 	n = 0;
 	next = 0;
+	
 	for (n = 0, next = 0; partitions[n].name; n++) {
 		unsigned sz = partitions[n].size_kb * 2;
+		
 		if (!strcmp(partitions[n].name,"-")) {
 			next += sz;
 			continue;
 		}
+		
 		if (sz == 0)
 			sz = blocks - next;
+			
 		if (add_ptn(ptbl, next, next + sz - 1, partitions[n].name))
 			return -1;
 		next += sz;
@@ -352,22 +346,18 @@ static int do_format(void)
 	fastboot_flash_reset_ptn();
 	if (mmc_write(1, (void*) ptbl, 0, sizeof(struct ptable)) != 1)
 		return -1;
-
 	printf("\nnew partition table:\n");
 	load_ptbl(1);
-
 	return 0;
 }
 
-int fastboot_oem(const char *cmd)
-{
+int fastboot_oem(const char *cmd) {
 	if (!strcmp(cmd,"format"))
 		return do_format();
 	return -1;
 }
 
-void board_mmc_init(void)
-{
+void board_mmc_init(void) {
 	/* nothing to do this early */
 }
 
@@ -380,8 +370,7 @@ struct bootloader_message {
 // Shared sprintf buffer for fatsave
 static char buf[64];
 
-static inline int read_bcb(void)
-{
+static inline int read_bcb(void) {
 	return run_command("mmcinit 1; fatload mmc 1:5 0x81000000 BCB 2048", 0);
 }
 
@@ -389,57 +378,58 @@ static inline int read_bcb(void)
 
 static char device;
 
-inline char read_u_boot_device(void)
-{
+inline char read_u_boot_device(void) {
 	sprintf(buf, "mmcinit 1; fatload mmc 1:5 0x%08x u-boot.device 1", &device);
+	
 	if (run_command(buf, 0)) {  //no such file
 		return 'X'; // this is going to mean no such file, or I guess the file could have 'X'...
-	} else {
-	return device;
+	} 
+	else {
+		return device;
 	}
 }
 
-inline int write_u_boot_device(char value)
-{
+inline int write_u_boot_device(char value) {
 	sprintf(buf, "mmcinit 1; fatsave mmc 1:5 0x%08x u-boot.device 1", &value);
+	
 	if (run_command(buf, 0)) {
 		printf("Error: Cannot write /bootdata/u-boot.device.\n");
 		return 0;
-		}
+	}
 	return value;
 }
 
-inline char read_u_boot_altboot(void)
-{
+inline char read_u_boot_altboot(void) {
 	sprintf(buf, "mmcinit 1; fatload mmc 1:5 0x%08x u-boot.altboot 1", &device);
 	if (run_command(buf, 0)) {  //no such file
 		return 'X'; // this is going to mean no such file, or I guess the file could have 'X'...
-	} else {
-	return device;
+	} 
+	else {
+		return device;
 	}
 }
 
-inline char read_u_boot_clearbc(void)
-{
+inline char read_u_boot_clearbc(void) {
 	sprintf(buf, "mmcinit 1; fatload mmc 1:5 0x%08x u-boot.clearbc 1", &device);
+	
 	if (run_command(buf, 0)) {  //no such file
 		return 'X'; // this is going to mean no such file, or I guess the file could have 'X'...
-	} else {
-	return device;
+	} 
+	else {
+		return device;
 	}
 }
 
-inline int write_u_boot_altboot(char value)
-{
+inline int write_u_boot_altboot(char value) {
 	sprintf(buf, "mmcinit 1; fatsave mmc 1:5 0x%08x u-boot.altboot 1", &value);
+	
 	if (run_command(buf, 0)) {
 		printf("Error: Cannot write /bootdata/u-boot.altboot.\n");
 		return 0;
-		}
+	}
 	return value;
 }
-static void write_bcb(const struct bootloader_message * const bcb)
-{
+static void write_bcb(const struct bootloader_message * const bcb) {
 	sprintf(buf, "mmcinit 1; fatsave mmc 1:5 0x%08x BCB", bcb);
 	run_command(buf, 0);
 }
@@ -456,13 +446,12 @@ unsigned long bootcount_load(void)
 /*	if (running_from_sd()) {
 		return 0;
 	} */
-
 	unsigned long bootcount = ACCLAIM_BOOTLIMIT + 1; // Set bootcount to limit+1 per default, in case we fail to read it apply factory fallback 
-
 	sprintf(buf, "mmcinit 1; fatload mmc 1:5 0x%08x BootCnt 4", &bootcount);
+	
 	if (run_command(buf, 0)) {
 		printf("No BootCnt.\n");
-	        sprintf("none", &bootcount);
+	    sprintf("none", &bootcount);
 	}
 	return bootcount;
 }
@@ -473,10 +462,9 @@ static const struct bootloader_message factory_bcb = {
 	.recovery = "recovery\n--update_package=/factory/factory.zip\n--restore=factory\n",
 };
 
-void bootcount_store(unsigned long bootcount)
-{
-
+void bootcount_store(unsigned long bootcount) {
 	printf("BootCnt %lu\n", bootcount);
+	
 /*	if (bootcount > ACCLAIM_BOOTLIMIT) {
 		// In case we have reached the bootlimit
 		// we write the factory restore bcb
@@ -486,25 +474,24 @@ void bootcount_store(unsigned long bootcount)
 		// fallback for infinity we clear it before entering recovery
 		bootcount = 0;
 	}  */
-
 	sprintf(buf, "mmcinit 1; fatsave mmc 1:5 0x%08x BootCnt", &bootcount);
+	
 	if (run_command(buf, 0)) {
 		printf("Cannot write BootCnt, rom restore forced.\n");
 //		write_bcb(&romrestore_bcb);
 	}
-return;
+	return;
 }
 #endif
 
-void do_factory_fallback(void)
-{
+void do_factory_fallback(void) {
 	write_bcb(&factory_bcb);
 	run_command("mmcinit 1; booti mmc1 recovery", 0);
 }
 
-static inline int load_serial_num(void)
-{
+static inline int load_serial_num(void) {
 	memset((void*)0x81000000, 0, 32);
+	
 	if (!run_command("mmcinit 1; fatload mmc 1:4 0x81000000 devconf/DeviceId 31", 0)) {
 		setenv("serialnum",(char *)0x81000000);
 		return 0;
@@ -521,18 +508,17 @@ static const char * const update_zip_names[] = {
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-static int check_update_zip(void)
-{
+static int check_update_zip(void) {
 	volatile unsigned int *update_image_location = (unsigned int *) 0x80000000;
 	char buffer[64];
 	int i;
-
 	*update_image_location  = 0xDEADBEEF;
 
 	for (i = 0; i < ARRAY_SIZE(update_zip_names); ++i) {
 		sprintf(buffer, "mmcinit 0; fatload mmc 0 0x80000000 %s 4", update_zip_names[i]);
 	
-		if (!run_command (buffer, 0) && *update_image_location != 0xDEADBEEF) {
+		if (!run_command (buffer, 0) &&
+			*update_image_location != 0xDEADBEEF) {
 			return i;
 		}
 	}
@@ -540,12 +526,10 @@ static int check_update_zip(void)
 	return -1;
 }
 
-static void display_feedback(enum boot_action image)
-{
+static void display_feedback(enum boot_action image) {
 //	uint16_t *image_start;
 //	uint16_t *image_end;
-
-	lcd_bl_set_brightness(100);
+	lcd_bl_set_brightness(140);
 	lcd_console_setpos(MENUTOP, INDENT);
 	lcd_console_setcolor(CONSOLE_COLOR_CYAN, CONSOLE_COLOR_BLACK);
 
@@ -564,144 +548,140 @@ static void display_feedback(enum boot_action image)
 		break;
 
 	case BOOT_SD_RECOVERY:
-		lcd_puts(" 	   (SDC) LOADING RECOVERY ...          ");
+		lcd_puts("         (SDC) LOADING RECOVERY ...          ");
 		break;
 
-	case BOOT_SD_CM7:
-		lcd_puts(" 	   (SDC) LOADING CM7 ...               ");
+	case BOOT_SD_BOOT:
+		lcd_puts("         (SDC) LOADING BOOT ...              ");
 		break;
 
-	case BOOT_SD_CM9:
-		lcd_puts(" 	   (SDC) LOADING CM9 ...               ");
+	case BOOT_SD_ALTBOOT:
+		lcd_puts("         (SDC) LOADING ALTBOOT ...           ");
 		break;
 
 	case BOOT_SD_ALTBOOT1:
-		lcd_puts(" 	   (SDC) LOADING ALTBOOT1 ...          ");
+		lcd_puts("         (SDC) LOADING ALTBOOT1 ...          ");
 		break;
 
 	case BOOT_SD_ALTBOOT2:
-		lcd_puts(" 	   (SDC) LOADING ALTBOOT2 ...          ");
+		lcd_puts("         (SDC) LOADING ALTBOOT2 ...          ");
 		break;
 
 	case BOOT_SD_ALTBOOT3:
-		lcd_puts(" 	   (SDC) LOADING ALTBOOT3 ...          ");
+		lcd_puts("         (SDC) LOADING ALTBOOT3 ...          ");
 		break;
 
 	case BOOT_FASTBOOT:
 		lcd_puts(" FASTBOOT HAS STARTED, PRESS POWER TO CANCEL ");
 		break;
 	default:
-		lcd_puts(" 		 LOADING ...                   ");
+		lcd_puts("               LOADING ...                   ");
 		break;
 	}
-
 	//lcd_display_image(image_start, image_end);
 }
 
-static inline enum boot_action get_boot_action(void) 
-{
+static inline enum boot_action get_boot_action(void) {
 	u8 pwron = 0;
-        volatile struct bootloader_message *bcb = (struct bootloader_message *) 0x81000000;
+    volatile struct bootloader_message *bcb = (struct bootloader_message *) 0x81000000;
 	volatile unsigned int *reset_reason = (unsigned int *) 0x4A307B04;
 
 	if (mmc_init(1)) {
 		printf("mmc_init failed!\n");
 		return INVALID;
 	}
-
 	// clear bootcount if requested
+	
 	if (read_u_boot_clearbc()=='1') {
 		bootcount_store((unsigned long)0);
 	}
-
-		// Do not force CyanoBoot to boot into recovery
-#if 0
-		// Then check if there's a BCB file
-        if (!read_bcb()) {
-                printf("BCB found, checking...\n");
-
-                if (bcb->command[0] != 0 &&
-                        bcb->command[0] != 255) {
-                      	  if (running_from_sd()) {
+	// Then check if there's a BCB file
+	
+    if (!read_bcb()) {
+        printf("BCB found, checking...\n");
+        if (bcb->command[0] != 0 && bcb->command[0] != 255) {
+			if (running_from_sd()) {
 				return BOOT_SD_RECOVERY;
-				}
-				return BOOT_EMMC_RECOVERY;
-			  }
-                } else {
+			}
+			return BOOT_EMMC_RECOVERY;
+		}
+    } 
+	else {
 		lcd_console_setpos(53, 15);
 		lcd_console_setcolor(CONSOLE_COLOR_ORANGE, CONSOLE_COLOR_BLACK);
 		lcd_puts("/bootdata/BCB missing.  Running recovery.");
 		if (running_from_sd()) {
 			return BOOT_SD_RECOVERY;
-			}
-			return BOOT_EMMC_RECOVERY;
-                }
-#endif
+		}
+		return BOOT_EMMC_RECOVERY;
+    }
 	// give them time to press the button(s)
 	udelay(2000*1000);
-
+	
 	if ((gpio_read(HOME_BUTTON) == 0) && (gpio_read(POWER_BUTTON) == 1)) {  // BOTH KEYS STILL HELD FROM UB1
 		if (running_from_sd()) {
 			return BOOT_SD_RECOVERY;
 		}
-		return BOOT_EMMC_RECOVERY;
+			return BOOT_EMMC_RECOVERY;
 	}
-
+	
 	if ((gpio_read(HOME_BUTTON) == 0) && (gpio_read(POWER_BUTTON) == 0)) {   // just HOME button is pressed
 		return do_menu();
-	} else	{ // default boot
+	}
+	else {	// default boot
 		char device_flag, altboot_flag;
 		if ((running_from_sd()) && (!((device_flag = read_u_boot_device()) == '1'))) {
 			if (altboot_flag = read_u_boot_altboot() == '1') {
 				lcd_console_setpos(MENUTOP, INDENT);
 				lcd_console_setcolor(CONSOLE_COLOR_ORANGE, CONSOLE_COLOR_BLACK);
-				lcd_puts("SD CM9 BOOT OVERRIDDEN. BOOTING TO SD CM7    ");
-
-				return BOOT_SD_CM7;
-			} else {
-				return BOOT_SD_CM9;
+				lcd_puts("SD BOOT OVERRIDDEN. BOOTING TO SD ALTBOOT    ");
+				return BOOT_SD_ALTBOOT;
+			} 
+			else {
+				return BOOT_SD_BOOT;
 			}
-		} else { 	// running from emmc or overridden
+		} 
+		else { 	// running from emmc or overridden
 			if (altboot_flag = read_u_boot_altboot() == '1') {
 				lcd_console_setpos(MENUTOP, INDENT);
 				lcd_console_setcolor(CONSOLE_COLOR_ORANGE, CONSOLE_COLOR_BLACK);
 				lcd_puts("SD BOOT OVERRIDDEN. BOOTING TO INT ALTBOOT   ");
-
+					
 				return BOOT_EMMC_ALTBOOT; 
-			} else {
+			} 
+			else {
 				if ((device_flag == '1') && (running_from_sd())) {
 					lcd_console_setpos(MENUTOP, INDENT);
 					lcd_console_setcolor(CONSOLE_COLOR_ORANGE, CONSOLE_COLOR_BLACK);
-					lcd_puts("SD BOOT OVERRIDDEN. BOOTING TO INT BOOT      ");
+					lcd_puts("SD BOOT OVERRIDDEN. BOOTING TO INT BOOT      "); 
 				}
-
-				return BOOT_EMMC_NORMAL;
+				return BOOT_EMMC_NORMAL;	
 			}
 		}
 	}
 }
 
-int determine_boot_type(void)
-{
+int determine_boot_type(void) {
 	DECLARE_GLOBAL_DATA_PTR;
 	uint8_t charging;
 	uint16_t batt_lvl;
 	extern uint16_t check_charging(uint8_t* enabling);
 	unsigned long bootcount = bootcount_load();
 	char s [5];
-
 	setenv("bootlimit", stringify(ACCLAIM_BOOTLIMIT));
 	setenv("altbootcmd", "mmcinit 1; booti mmc1 recovery");
 	batt_lvl = check_charging(&charging);
 	lcd_console_init();
 	// give subtle indicator if uboot is booting from emmc or sd
 
-
+	if(charging)
+		lcd_bl_set_brightness(35); //batt very low, let it charge
 	lcd_console_setpos(0, 1); //indent slightly
 	lcd_console_setcolor(CONSOLE_COLOR_GRAY, CONSOLE_COLOR_BLACK);
 	if (running_from_sd()) {
 		lcd_putc('S');
-	} else {
+	} 
+	else {
 		lcd_putc('I'); 
 	}
 	sprintf(s, " %u", bootcount);
@@ -712,11 +692,13 @@ int determine_boot_type(void)
 	lcd_console_setpos(2, 1);
 	lcd_console_setcolor((batt_lvl < 30?(batt_lvl <= 10?CONSOLE_COLOR_RED:CONSOLE_COLOR_ORANGE):CONSOLE_COLOR_GREEN), CONSOLE_COLOR_BLACK);
 	lcd_printf("batt level: %d\n charging %s", batt_lvl, (charging?"ENABLED":"DISABLED"));
-
-
 	int action = get_boot_action();
 
-	while(1){
+	while(1) {
+		if(charging)
+			lcd_bl_set_brightness(35); //batt very low, let it charge
+		else
+			lcd_bl_set_brightness(100); //batt very low, let it charge
 		switch(action) {
 
 	        //actually, boot from boot+512K -- thanks bauwks!
@@ -744,16 +726,16 @@ int determine_boot_type(void)
 			display_feedback(BOOT_SD_RECOVERY);
 			return 0;
 
-		case BOOT_SD_CM7:
-			setenv ("bootcmd", "setenv setbootargs setenv bootargs ${sdbootargs}; run setbootargs; mmcinit 0; fatload mmc 0:1 0x81000000 cm7.img; booti 0x81000000");
+		case BOOT_SD_BOOT:
+			setenv ("bootcmd", "setenv setbootargs setenv bootargs ${sdbootargs}; run setbootargs; mmcinit 0; fatload mmc 0:1 0x81000000 boot.img; booti 0x81000000");
 			setenv ("altbootcmd", "run bootcmd"); // for sd boot altbootcmd is the same as bootcmd
-			display_feedback(BOOT_SD_CM7);
+			display_feedback(BOOT_SD_BOOT);
 			return 0;
 
-		case BOOT_SD_CM9:
-			setenv ("bootcmd", "setenv setbootargs setenv bootargs ${sdbootargs}; run setbootargs; mmcinit 0; fatload mmc 0:1 0x81000000 cm9.img; booti 0x81000000");
+		case BOOT_SD_ALTBOOT:
+			setenv ("bootcmd", "setenv setbootargs setenv bootargs ${sdbootargs}; run setbootargs; mmcinit 0; fatload mmc 0:1 0x81000000 altboot.img; booti 0x81000000");
 			setenv ("altbootcmd", "run bootcmd"); // for sd boot altbootcmd is the same as bootcmd
-			display_feedback(BOOT_SD_CM9);
+			display_feedback(BOOT_SD_ALTBOOT);
 			return 0;
 
 		case BOOT_SD_ALTBOOT1:
@@ -787,4 +769,3 @@ int determine_boot_type(void)
 		action = do_menu();
 	}
 }
-

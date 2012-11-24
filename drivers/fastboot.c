@@ -45,6 +45,9 @@
 #define OTG_SYSCONFIG 0x4A0AB404
 #define OTG_INTERFSEL 0x4A0AB40C
 #define USBOTGHS_CONTROL 0x4A00233C
+#define CONTROL_DEV_CONF 0x4A002300
+
+#define USBPHY_PD 0x1
 
 #include "usb_debug_macros.h"
 
@@ -70,6 +73,7 @@ static volatile u8  *bulk_fifo  = (volatile u8  *) OMAP34XX_USB_FIFO(BULK_ENDPOI
 static volatile u32 *otg_sysconfig = (volatile u32  *)OTG_SYSCONFIG;
 static volatile u32 *otg_interfsel = (volatile u32  *)OTG_INTERFSEL;
 static volatile u32 *otghs_control = (volatile u32  *)USBOTGHS_CONTROL;
+static volatile u32 *control_dev_conf = (volatile u32  *)CONTROL_DEV_CONF;
 
 #define DMA_CHANNEL 1
 static volatile u8  *peri_dma_intr	= (volatile u8  *) OMAP_USB_DMA_INTR;
@@ -142,6 +146,8 @@ static unsigned int current_config = 0;
 static unsigned int high_speed = 1;
 
 static unsigned int deferred_rx = 0;
+
+static int dload_size = 0;
 
 static struct usb_device_request req;
 
@@ -914,8 +920,67 @@ static void fastboot_rx_error()
 
 }
 
-static int fastboot_rx (void)
+int fastboot_download(unsigned char *buffer, unsigned int size)
 {
+	int dload_bytes = 0;
+	u16 count = 0;
+	int fifo_size = fastboot_fifo_size();
+	int data_to_read = 0;
+
+	do {
+		if (*peri_rxcsr & MUSB_RXCSR_RXPKTRDY) {
+			count = *rxcount;
+			if (0 == *rxcount) {
+				/* Clear the RXPKTRDY bit */
+				*peri_rxcsr &= ~MUSB_RXCSR_RXPKTRDY;
+			} else if (fifo_size < count) {
+				fastboot_rx_error();
+				dload_bytes = -1;
+				goto out;
+			} else {
+				*peri_rxcsr &= ~MUSB_RXCSR_AUTOCLEAR;
+				*peri_rxcsr |= MUSB_RXCSR_DMAENAB;
+				*peri_rxcsr |= MUSB_RXCSR_DMAMODE;
+				*peri_rxcsr |= MUSB_RXCSR_DMAENAB;
+
+				if (count >= fifo_size)
+					data_to_read = fifo_size;
+				else
+					data_to_read = count;
+
+				if (dload_bytes == 0) {
+					if (read_bulk_fifo_dma(buffer, data_to_read)) {
+						fastboot_rx_error();
+						dload_bytes = -1;
+						goto out;
+					}
+				} else {
+					if (read_bulk_fifo_dma(buffer + dload_bytes + 1, data_to_read)) {
+						fastboot_rx_error();
+						dload_bytes = -1;
+						goto out;
+					}
+				}
+
+				dload_bytes += count;
+
+				/* Disable DMA in peri_rxcsr */
+				*peri_rxcsr &= ~(MUSB_RXCSR_DMAENAB |
+						 MUSB_RXCSR_DMAMODE);
+				/* Clear the RXPKTRDY bit */
+				*peri_rxcsr &= ~MUSB_RXCSR_RXPKTRDY;
+				/*printf("Downloaded %i of %i\n", dload_bytes, size);
+				printf("%i bytes left\n", size - dload_bytes);*/
+			}
+		}
+	} while(dload_bytes < size);
+out:
+	return dload_bytes;
+}
+
+static int fastboot_rx(void)
+{
+	int size_of_dload = 0;
 	if (*peri_rxcsr & MUSB_RXCSR_RXPKTRDY) {
 		u16 count = *rxcount;
 		int fifo_size = fastboot_fifo_size();
@@ -973,8 +1038,9 @@ static int fastboot_rx (void)
 			/* Pass this up to the interface's handler */
 			if (fastboot_interface &&
 			    fastboot_interface->rx_handler) {
-				if (!fastboot_interface->rx_handler
-				    (&fastboot_bulk_fifo[0], count))
+				size_of_dload = fastboot_interface->rx_handler(&fastboot_bulk_fifo[0], count);
+				printf("Download Size %i\n", size_of_dload);
+				if (size_of_dload >= 0)
 					err = 0;
 			}
 
@@ -991,7 +1057,7 @@ static int fastboot_rx (void)
 			}
 		}
 	}
-	return 0;
+	return size_of_dload;
 }
 
 static int fastboot_suspend (void)
@@ -1012,6 +1078,7 @@ int fastboot_poll(void)
 	static u32 blink = 0;
 	u32 reg = 0x4A326000;
 	u8 pull = 0;
+	char response[65];
 
 #define OMAP44XX_WKUP_CTRL_BASE 0x4A31E000
 #define OMAP44XX_CTRL_BASE 0x4A100000
@@ -1057,23 +1124,45 @@ int fastboot_poll(void)
 	{
 		if (intrusb & OMAP34XX_USB_INTRUSB_SOF)
 		{
-			ret = fastboot_resume ();
+			ret = fastboot_resume();
 			if (ret)
 				return ret;
 
 			/* The fastboot client blocks of read and 
 			   intrrx is not reliable. 
 			   Really poll */
-			if (deferred_rx)
-				ret = fastboot_rx ();
-			deferred_rx = 0;
-			if (ret)
-				return ret;
-			
+			if (deferred_rx) {
+				if (dload_size) {
+					ret = fastboot_download(fastboot_interface->transfer_buffer, dload_size);
+					if (dload_size == ret) {
+						fastboot_interface->data_to_flash_size = dload_size;
+						dload_size = 0;
+						ret = 0;
+						sprintf(response, "OKAY");
+					} else {
+						sprintf(response, "FAIL");
+						dload_size = 0;
+					}
 
+					fastboot_tx_status(response, strlen(response));
+				} else {
+					ret = fastboot_rx();
+				}
+			}
+			deferred_rx = 0;
+			if (ret < 0) {
+				printf("Failed to recieve data from host\n");
+				return ret;
+			} else if (ret > 0) {
+				dload_size = ret;
+				ret = 0;
+			}
 		}
 		if (intrusb & OMAP34XX_USB_INTRUSB_SUSPEND)
 		{
+			/* USB cable disconnected, reset faddr */
+			faddr = 0xff;
+
 			ret = fastboot_suspend ();
 			if (ret)
 				return ret;
@@ -1295,6 +1384,7 @@ int fastboot_init(struct cmd_fastboot_interface *interface)
 	u8 devctl;
 	int cpu_rev = 0;
 	int cpu_type = 0;
+	u32 usb_phy_power_down;
 
 	device_strings[DEVICE_STRING_MANUFACTURER_INDEX]  = "Texas Instruments";
 #if defined (CONFIG_3430ZOOM2)
@@ -1396,7 +1486,16 @@ int fastboot_init(struct cmd_fastboot_interface *interface)
 	/* now set better defaults */
 	*otg_sysconfig = (0x1008);
 
-	if (*otghs_control != 0x15) {
+	usb_phy_power_down = *control_dev_conf & USBPHY_PD;
+
+	if(usb_phy_power_down)
+	{
+		 // poweron usb phy
+		 *control_dev_conf &= ~USBPHY_PD;
+		 udelay(200000);
+	}
+
+	if ((*otghs_control != 0x15) || usb_phy_power_down) {
 		fastboot_reset();
 
 		*otg_interfsel &= 0;
@@ -1434,3 +1533,4 @@ int fastboot_init(struct cmd_fastboot_interface *interface)
 }
 
 #endif /* CONFIG_FASTBOOT */
+
