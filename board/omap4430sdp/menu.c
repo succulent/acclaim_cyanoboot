@@ -55,16 +55,16 @@
 
 #define NUM_OPTS		13  //number of boot options
 
-char *opt_list[NUM_OPTS] =   {	" 1) INT BOOT                 ",
-				" 2) INT RECOVERY             ",
-				" 3) INT ALTBOOT              ",
-				" 4) SDC RECOVERY             ",
-				" 5) SDC BOOT                 ",
-				" 6) SDC ALTBOOT              ",
-				" 7) SDC ALTBOOT1             ",
-				" 8) SDC ALTBOOT2             ",
-				" 9) SDC ALTBOOT3             ",
-				" 0) START FASTBOOT           ",
+char *opt_list[NUM_OPTS] =   {	" 1) INT BOOT               ",
+				" 2) INT RECOVERY           ",
+				" 3) INT ALTBOOT            ",
+				" 4) SDC RECOVERY           ",
+				" 5) SDC BOOT               ",
+				" 6) SDC ALTBOOT            ",
+				" 7) SDC ALTBOOT1           ",
+				" 8) SDC ALTBOOT2           ",
+				" 9) SDC ALTBOOT3           ",
+				" 0) START FASTBOOT         ",
 				"    DEFAULT BOOT FROM: ",
 				"    DEVICE: ", 
 				"    IMAGE: ",};
@@ -85,7 +85,6 @@ unsigned char get_keys_pressed(unsigned char* key) {
 		(*key) |= VOLUP_KEY;
 	if (gpio_read(ROW1) == 0)
 		(*key) |= VOLDOWN_KEY;
-
 	return (*key);
 }
 
@@ -129,17 +128,17 @@ int write_u_boot_file(const char* file, char value) {
 
 void print_u_boot_dev(void) {
 	if (read_u_boot_file("u-boot.device") == '1') {
-		lcd_puts("INT");
+		lcd_puts("INT       ");
 	} else {
-		lcd_puts("SDC");
+		lcd_puts("SDC       ");
 	}
 }
 
 void print_u_boot_img(void) {
 	if (read_u_boot_file("u-boot.altboot") == '1') {
-		lcd_puts("ALTERNATE");
+		lcd_puts("ALTERNATE ");
 	} else {
-		lcd_puts("NORMAL");
+		lcd_puts("NORMAL    ");
 	}
 }
 
@@ -159,7 +158,7 @@ void highlight_boot_line(int cursor, enum highlight_type highl) {
 		lcd_console_setcolor(CONSOLE_COLOR_CYAN, CONSOLE_COLOR_BLACK);
 		break;
 	}
-	lcd_console_setpos(MENUTOP + cursor, INDENT);
+	lcd_console_setpos(38 + cursor, INDENT);
 	lcd_puts(opt_list[cursor]);
 	if (cursor == CHANGE_BOOT_DEV) {
 		print_u_boot_dev();
@@ -180,11 +179,11 @@ int do_menu() {
 	lcd_console_setcolor(CONSOLE_COLOR_CYAN, CONSOLE_COLOR_BLACK);
 	// lcd_clear (NULL, 1, 1, NULL);
 	lcd_console_setpos(MENUTOP-5, INDENT);
-	lcd_puts("_____________________________");
+	lcd_puts("___________________________");
 	lcd_console_setpos(MENUTOP-3, INDENT);
-	lcd_puts("          BOOT MENU          ");
+	lcd_puts("         BOOT MENU         ");
 	lcd_console_setpos(MENUTOP-2, INDENT);
-	lcd_puts("_____________________________");
+	lcd_puts("___________________________");
 	lcd_console_setpos(55, 17);
 	lcd_puts("                                             ");
 
@@ -234,7 +233,7 @@ int do_menu() {
 	lcd_console_setpos(55, 17);
 	lcd_puts(" PRESS VOL-UP/DN TO MOVE UP/DN & ^ TO SELECT ");
 	lcd_console_setpos(59, 0);
-	lcd_puts(" \n \n Credits: bauwks, chrmhoffmann, fattire,  Kuzma30, mik_os, Rebellos\n Credits: Denx, j4mm3r, Ogilvy, succulent, tonsofquestions\n Cyanoboot for Nook Tablet (" __TIMESTAMP__ ") - ** NOT FOR SALE **");
+	lcd_puts(" \n \n CREDITS: BAUWKS, CHRMHOFFMANN, FATTIRE, KUZMA30, MIK_OS, REBELLOS\n          DENX, J4MM3R, OGILVY, SUCCULENT, TONSOFQUESTIONS\n CYANOBOOT FOR NOOK TABLET (" __TIMESTAMP__ ") - ** NOT FOR SALE **");
 
 	cursor = 0;
 
