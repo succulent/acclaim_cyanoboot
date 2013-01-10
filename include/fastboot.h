@@ -356,4 +356,3 @@ extern int fastboot_flash_write(fastboot_ptentry *ptn, unsigned extra_per_page,
 
 #endif /* CONFIG_FASTBOOT */
 #endif /* FASTBOOT_H */
-

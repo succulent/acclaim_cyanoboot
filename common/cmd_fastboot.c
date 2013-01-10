@@ -1418,4 +1418,3 @@ unsigned int fastboot_flash_get_ptn_count(void)
 
 
 #endif	/* CONFIG_FASTBOOT */
-

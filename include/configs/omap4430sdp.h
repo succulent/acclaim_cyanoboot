@@ -304,4 +304,3 @@ extern unsigned int boot_flash_type;
 #define NAND_WAIT_READY(nand)	udelay(10)
 
 #endif                           /* __CONFIG_H */
-

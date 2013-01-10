@@ -1533,4 +1533,3 @@ int fastboot_init(struct cmd_fastboot_interface *interface)
 }
 
 #endif /* CONFIG_FASTBOOT */
-
