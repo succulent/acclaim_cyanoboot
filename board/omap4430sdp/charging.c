@@ -457,7 +457,7 @@ uint16_t check_charging(uint8_t* enabling)
 
 	charger = charger_detect();
 	init_batt();
-	if (batt_soc < 30 && charger != CHARGE_DISABLE) { //just enable it in case we stay abit in cyanoboot
+	if (batt_soc < 50 && charger != CHARGE_DISABLE) { //just enable it in case we stay abit in cyanoboot
 		charger_enable(charger, 0);
 		(*enabling) = 1;
 		lcd_bl_set_brightness(40);
