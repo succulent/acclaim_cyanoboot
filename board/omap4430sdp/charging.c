@@ -85,7 +85,7 @@ static int init_batt(void)
 		// Due to issue in factory with corrupt eMMC
 		// prevent access to eMMC in case of SD_BOOT
 		ret = max17042_init(!running_from_sd());
-		
+
 		if (ret == 0) {
 			break;
 		}
@@ -265,7 +265,7 @@ static void display_image(enum image_t image, uint16_t soc)
 	}
 
 	if (image == IMAGE_BOOT) {
-		lcd_bl_set_brightness(100);
+		lcd_bl_set_brightness(77);
 	}
 
 	lcd_display_image(image_start, image_end);
@@ -442,7 +442,6 @@ int board_charging(void)
 	printf("SOC %hu%%, booting.\n", batt_soc);
 	return ret;
 }
-
 
 uint16_t check_charging(uint8_t* enabling)
 {
