@@ -27,6 +27,9 @@
 #include <asm/arch/sys_info.h>
 #include <i2c.h>
 
+#define DIE_ID_REG_BASE		(OMAP44XX_L4_IO_BASE + 0x2000)
+#define DIE_ID_REG_OFFSET	0x200
+
 /**************************************************************************
  * get_cpu_type() - Read the FPGA Debug registers and provide the DIP switch
  *    settings
@@ -90,7 +93,38 @@ u32 get_cpu_rev(void)
 		}
 	}
 	return CPU_4430_ES22;
+}
 
+/*
+ * dieid_num_r(void) - read and set die ID
+ */
+
+void dieid_num_r(void)
+{
+	char *uid_s, die_id[34];
+	u32 id[4];
+
+	memset(die_id, 0, sizeof(die_id));
+
+	uid_s = getenv("dieid#");
+
+	if (uid_s == NULL) {
+#if 0
+		unsigned int reg;
+		reg = DIE_ID_REG_BASE + DIE_ID_REG_OFFSET;
+		id[3] = __raw_readl(reg);
+		id[2] = __raw_readl(reg + 0x8);
+		id[1] = __raw_readl(reg + 0xC);
+		id[0] = __raw_readl(reg + 0x10);
+		sprintf(die_id, "%08x%08x%08x%08x", id[0], id[1], id[2], id[3]);
+#endif
+		/* dieid will be overrided by BN rom token as
+		   used by the serial no for usb gadget
+		   keep it the same first to avoid factory reinstall adb driver everytimes */
+		sprintf(die_id, "%08x%08x%08x%08x", 0, 0, 0, 0);
+		setenv("dieid#", die_id);
+		uid_s = die_id;
+	}
 }
 
 /****************************************************

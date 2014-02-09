@@ -231,8 +231,6 @@ int board_late_init(void)
 {
 	printf("Board revision %s\n", board_rev_string(get_board_revision()));
 
-
-
 	lcd_bl_set_brightness(100);
 	/* RLE asservation */
 	((uint16_t)(LCD_ASPECT+(LCD_WIDTH*LCD_HEIGHT*O_LANDSCAPE)) == 

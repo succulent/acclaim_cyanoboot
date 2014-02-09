@@ -504,6 +504,7 @@ static inline int load_serial_num(void)
 	memset((void*)0x81000000, 0, 32);
 	if (!run_command("mmcinit 1; fatload mmc 1:4 0x81000000 devconf/DeviceId 31", 0)) {
 		setenv("serialnum",(char *)0x81000000);
+		setenv("dieid#",(char *)0x81000000);
 		return 0;
 	}
 
@@ -668,8 +669,10 @@ int determine_boot_type(void)
 	uint8_t charging;
 	uint16_t batt_lvl;
 	extern uint16_t check_charging(uint8_t* enabling);
+
 	unsigned long bootcount = bootcount_load();
-	char s [5];
+	char s[5];
+	char buffer[512];
 
 	setenv("bootlimit", stringify(ACCLAIM_BOOTLIMIT));
 	setenv("altbootcmd", "mmcinit 1; booti mmc1 recovery");
@@ -693,55 +696,67 @@ int determine_boot_type(void)
 	lcd_console_setpos(2, 1);
 	lcd_console_setcolor((batt_lvl < 30?(batt_lvl <= 10?CONSOLE_COLOR_RED:CONSOLE_COLOR_ORANGE):CONSOLE_COLOR_GREEN), CONSOLE_COLOR_BLACK);
 	lcd_printf("batt level: %d\n charging %s", batt_lvl, (charging?"ENABLED":"DISABLED"));
-
+	lcd_console_setpos(4, 2);
+	load_serial_num();
+	char *die_id = getenv("dieid#");
+	lcd_printf("device id: %s", die_id);
 
 	int action = get_boot_action();
+	sprintf(buffer, "setenv bootargs ${sdbootargs} androidboot.serialno=${serialnum} androidboot.hardware=acclaim");
 
-	while(1){
+	while(1) {
 		if(charging)
 			lcd_bl_set_brightness(35); //batt very low, let it charge
 		else
 			lcd_bl_set_brightness(100); //batt very low, let it charge
+
 		switch(action) {
 		case BOOT_SD_NORMAL:
-			setenv ("bootcmd", "setenv setbootargs setenv bootargs ${sdbootargs}; run setbootargs; mmcinit 0; fatload mmc 0:1 0x81000000 boot.img; booti 0x81000000");
+			run_command(buffer, 0);
+			setenv ("bootcmd", "mmcinit 0; fatload mmc 0:1 0x81000000 boot.img; booti 0x81000000");
 			setenv ("altbootcmd", "run bootcmd"); // for sd boot altbootcmd is the same as bootcmd
 			display_feedback(BOOT_SD_NORMAL);
 			return 0;
 
         case BOOT_SD_RECOVERY:
-            setenv ("bootcmd", "setenv setbootargs setenv bootargs ${sdbootargs}; run setbootargs; mmcinit 0; fatload mmc 0:1 0x81000000 recovery.img; booti 0x81000000");
+			sprintf(buffer, "setenv bootargs ${sdbootargs} androidboot.serialno=${die_id} androidboot.hardware=acclaim");
+			run_command(buffer, 0);
+			setenv ("bootcmd", "mmcinit 0; fatload mmc 0:1 0x81000000 recovery.img; booti 0x81000000");
             setenv ("altbootcmd", "run bootcmd"); // for sd boot altbootcmd is the same as bootcmd
 			display_feedback(BOOT_SD_RECOVERY);
             return 0;
 
 		case BOOT_SD_ALTBOOT:
-			setenv ("bootcmd", "setenv setbootargs setenv bootargs ${sdbootargs}; run setbootargs; mmcinit 0; fatload mmc 0:1 0x81000000 altboot.img; booti 0x81000000");
+			run_command(buffer, 0);
+			setenv ("bootcmd", "mmcinit 0; fatload mmc 0:1 0x81000000 altboot.img; booti 0x81000000");
 			setenv ("altbootcmd", "run bootcmd"); // for sd boot altbootcmd is the same as bootcmd
 			display_feedback(BOOT_SD_ALTBOOT);
 			return 0;
 
 	        //actually, boot from boot+512K -- thanks bauwks!
 		case BOOT_EMMC_NORMAL:
+			run_command(buffer, 0);
 			setenv("bootcmd", "mmcinit 1; booti mmc1 boot 0x80000");
 			display_feedback(BOOT_EMMC_NORMAL);
 			return 0;
 
 		//actually, boot from recovery+512K -- thanks bauwks!
 		case BOOT_EMMC_RECOVERY:
+			run_command(buffer, 0);
 			setenv("bootcmd", "mmcinit 1; booti mmc1 recovery 0x80000");
 			display_feedback(BOOT_EMMC_RECOVERY);
 			return 0;
 
 		case BOOT_EMMC_ALTBOOT:  // no 512K offset, this is just a file.
-			setenv ("bootcmd", "setenv setbootargs setenv bootargs ${emmcbootargs}; run setbootargs; mmcinit 1; fatload mmc 1:5 0x81000000 altboot.img; booti 0x81000000");
+			run_command(buffer, 0);
+			setenv ("bootcmd", "mmcinit 1; fatload mmc 1:5 0x81000000 altboot.img; booti 0x81000000");
 			setenv ("altbootcmd", "run bootcmd"); // for emmc altboot altbootcmd is the same as bootcmd
 			display_feedback(BOOT_EMMC_ALTBOOT);
 			return 0;
 
 		case BOOT_FASTBOOT:
 			display_feedback(BOOT_FASTBOOT);
-            run_command("fastboot", 0);
+			run_command("fastboot", 0);
 			break;
 		case INVALID:
 		default:
@@ -751,4 +766,3 @@ int determine_boot_type(void)
 		action = do_menu();
 	}
 }
-

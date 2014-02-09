@@ -159,13 +159,12 @@
 #define stringify(s)        tostring(s)
 
 // bootargs are set in device/ti/blaze/BoardConfig.mk
-#define CONFIG_BOOTARGS ""
+#define CONFIG_BOOTARGS stringify(BOARD_KERNEL_CMDLINE)
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"commonbootargs=" stringify(BOARD_KERNEL_CMDLINE) "\0" \
-	"sdbootargs=${commonbootargs} root=/dev/mmcblk1p2 rw" "\0" \
-	"emmcbootargs=${commonbootargs} root=/dev/mmcblk1p2 rw" "\0"
+	"sdbootargs=" stringify(BOARD_KERNEL_CMDLINE) "\0"
 
 #define CONFIG_BOOTCOMMAND "booti mmc1"
+#define CONFIG_OMAP4_ANDROID_CMD_LINE 1
 
 #endif
 
