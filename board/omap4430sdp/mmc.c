@@ -719,7 +719,6 @@ int determine_boot_type(void)
 			return 0;
 
         case BOOT_SD_RECOVERY:
-			sprintf(buffer, "setenv bootargs ${sdbootargs} androidboot.serialno=${die_id} androidboot.hardware=acclaim");
 			run_command(buffer, 0);
 			setenv ("bootcmd", "mmcinit 0; fatload mmc 0:1 0x81000000 recovery.img; booti 0x81000000");
             setenv ("altbootcmd", "run bootcmd"); // for sd boot altbootcmd is the same as bootcmd
